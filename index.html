@@ -28,6 +28,7 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     html{scroll-behavior:smooth;font-size:16px;}
     body{position:relative;z-index:1;background:var(--bg);color:var(--text);font-family:var(--body);line-height:1.6;overflow-x:hidden;cursor:none;}
+    body.loading { overflow: hidden; }
     body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:-2;opacity:0.6;}
     body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;background-image:linear-gradient(90deg, rgba(232,255,71,0.04) 1px, transparent 1px), linear-gradient(rgba(232,255,71,0.04) 1px, transparent 1px);background-size:80px 80px;opacity:0.28;animation:gridFloat 16s linear infinite;}
 
@@ -58,6 +59,17 @@
       inset: 0;
       width: 100%;
       height: 100%;
+    }
+
+    #bgCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: -3;
+      opacity: 0;
+      transition: opacity 1s ease;
     }
 
     /* ORBITAL RING SYSTEM */
@@ -235,6 +247,7 @@
       display: block;
       letter-spacing: 0.1em;
       line-height: 0.9;
+      margin-left: 2.5rem;
     }
 
     .name-text.samuel {
@@ -270,6 +283,7 @@
       letter-spacing: 0.1em;
       line-height: 0.9;
       white-space: nowrap;
+      margin-left: 2.5rem;
       animation: glitch 4s 2.2s infinite;
       opacity: 0;
     }
@@ -799,6 +813,8 @@
 
 </div>
 
+<canvas id="bgCanvas"></canvas>
+
 <!-- CINEMATIC REVEAL BARS -->
 <div id="page-reveal">
   <div class="reveal-bar"></div>
@@ -1201,6 +1217,8 @@ function tick() {
 }
 tick(); setInterval(tick, 1000);
 
+document.body.classList.add('loading');
+
 /* RADIAL BURST — draw SVG lines dynamically */
 const burst = document.querySelector('.radial-burst g');
 if(burst) {
@@ -1269,6 +1287,54 @@ let raf;
 function animate(){drawParticles();raf=requestAnimationFrame(animate);}
 animate();
 
+/* BACKGROUND PARTICLE SYSTEM */
+const bgCanvas = document.getElementById('bgCanvas');
+const bgCtx = bgCanvas.getContext('2d');
+let bgW, bgH, bgParticles = [];
+function bgResize() { bgW = bgCanvas.width = window.innerWidth; bgH = bgCanvas.height = window.innerHeight; }
+bgResize(); window.addEventListener('resize', bgResize);
+
+function mkBgParticle() {
+  const colors = [[232,255,71],[77,255,239],[255,107,53]];
+  const c = colors[Math.floor(Math.random() * colors.length)];
+  return { x: Math.random() * bgW, y: Math.random() * bgH, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4, r: Math.random() * 2 + .5, life: Math.random() * Math.PI * 2, speed: Math.random() * .015 + .005, color: c };
+}
+for (let i = 0; i < 80; i++) bgParticles.push(mkBgParticle());
+
+function drawBgParticles() {
+  bgCtx.clearRect(0, 0, bgW, bgH);
+  for (let i = 0; i < bgParticles.length; i++) {
+    for (let j = i + 1; j < bgParticles.length; j++) {
+      const dx = bgParticles[i].x - bgParticles[j].x, dy = bgParticles[i].y - bgParticles[j].y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 140) {
+        const a = (1 - dist / 140) * .07;
+        const c = bgParticles[i].color;
+        bgCtx.beginPath();
+        bgCtx.moveTo(bgParticles[i].x, bgParticles[i].y);
+        bgCtx.lineTo(bgParticles[j].x, bgParticles[j].y);
+        bgCtx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+        bgCtx.lineWidth = .4;
+        bgCtx.stroke();
+      }
+    }
+  }
+  bgParticles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.life += p.speed;
+    if (p.x < 0) p.x = bgW; if (p.x > bgW) p.x = 0;
+    if (p.y < 0) p.y = bgH; if (p.y > bgH) p.y = 0;
+    const alpha = (.4 + .4 * Math.sin(p.life)) * .8;
+    const [r, g, b] = p.color;
+    bgCtx.beginPath();
+    bgCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    bgCtx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+    bgCtx.fill();
+  });
+}
+let bgRaf;
+function animateBg() { drawBgParticles(); bgRaf = requestAnimationFrame(animateBg); }
+animateBg();
+
 /* PROGRESS ENGINE */
 const phases = [
   { label:'CORE_BOOT',    msg:'Initializing runtime environment...',    to:20  },
@@ -1327,6 +1393,8 @@ const iv=setInterval(()=>{
     setTimeout(()=>{
       cancelAnimationFrame(raf);
       loader.classList.add('hide');
+      document.body.classList.remove('loading');
+      bgCanvas.style.opacity = '1';
       pageReveal.classList.add('opened');
     },900);
   }
