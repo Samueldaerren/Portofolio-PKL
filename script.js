@@ -1,8 +1,3 @@
-const pageReveal = document.getElementById('page-reveal');
-if (pageReveal) {
-  pageReveal.style.display = 'none';
-}
-
 /* BACKGROUND PARTICLE SYSTEM */
 const bgCanvas = document.getElementById('bgCanvas');
 if (bgCanvas) {
@@ -19,15 +14,6 @@ function bgResize() {
 if (bgCanvas) {
   bgResize();
   window.addEventListener('resize', bgResize);
-}
-
-/* ═══ CURSOR ═══ */
-document.body.style.cursor='default';
-const cur=document.getElementById('cursor');
-const fol=document.getElementById('cursor-follower');
-if(cur && fol){
-  cur.style.display='none';
-  fol.style.display='none';
 }
 
 /* ═══ NAV ═══ */
